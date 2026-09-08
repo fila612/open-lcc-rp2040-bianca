@@ -33,16 +33,22 @@ SettingsFlash::SettingsFlash(spi_inst_t *spi, uint csPin): _spi(spi), _csPin(csP
 
 }
 
+// [MOD] These nops are inherited verbatim from the Pico SDK's flash_program.c example, as a
+// compiler-reordering guard around the CS toggle. Investigated and left as-is: at this bus's
+// 500 kHz SPI clock (see spi_init(spi1, 500*1000) in smart_lcc.cpp), the resulting few ns of
+// margin are functionally irrelevant to the flash chip's setup/hold requirements, and there is
+// no observed timing issue here — not touching working, unverified-by-bench-test code for no
+// measurable benefit.
 static inline void cs_select(uint _csPin) {
-    asm volatile("nop \n nop \n nop"); // FIXME
+    asm volatile("nop \n nop \n nop");
     gpio_put(_csPin, 0);
-    asm volatile("nop \n nop \n nop"); // FIXME
+    asm volatile("nop \n nop \n nop");
 }
 
 static inline void cs_deselect(uint _csPin) {
-    asm volatile("nop \n nop \n nop"); // FIXME
+    asm volatile("nop \n nop \n nop");
     gpio_put(_csPin, 1);
-    asm volatile("nop \n nop \n nop"); // FIXME
+    asm volatile("nop \n nop \n nop");
 }
 
 void SettingsFlash::read(uint32_t addr, uint8_t *buf, size_t len) {

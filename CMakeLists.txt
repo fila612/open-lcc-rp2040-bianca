@@ -4,6 +4,11 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# [MOD] -DHARDWARE_REVISION_OPENLCC_R2A is intentionally used for R2C main boards too, not a
+# leftover/bug: per the variegated-coffee/open-lcc-board README, R2B and R2C only changed
+# power-supply circuitry relative to R2A (Schottky diodes -> LM5050-1 OR-ing controllers,
+# SD_DET_A hardwired to GND, added pulldown resistors). No RP2040 GPIO pinout changed across
+# R2A -> R2B -> R2C, so there is no HARDWARE_REVISION_OPENLCC_R2C macro and none is needed.
 set(CMAKE_CXX_FLAGS "-mcpu=cortex-m0plus -mthumb -Wswitch-enum -Wall -Wextra -DHARDWARE_REVISION_OPENLCC_R2A")
 set(CMAKE_CXX_FLAGS_DEBUG "-g2 -O0 -ggdb2")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")

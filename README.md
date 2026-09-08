@@ -75,7 +75,14 @@ Bootloader.
 
 There are a number of define flags to be aware of. Firstly, there are `HARDWARE_REVISION_*` flags to set which revision
 of the Open LCC Main Board you are using. Current options are `HARDWARE_REVISION_OPENLCC_R1A`, `HARDWARE_REVISION_OPENLCC_R2A`
-and `HARDWARE_REVISION_OPENLCC_R2B`. You need to set one (and only one) of these
+and `HARDWARE_REVISION_OPENLCC_R2B`. You need to set one (and only one) of these.
+
+**[MOD] R2C boards**: there is no `HARDWARE_REVISION_OPENLCC_R2C` flag, and none is needed. Per the
+[open-lcc-board](https://github.com/variegated-coffee/open-lcc-board) README, R2B and R2C only changed
+power-supply circuitry relative to R2A (Schottky diodes replaced by LM5050-1 OR-ing controllers, `SD_DET_A`
+hardwired to GND instead of driven by the RP2040, added pulldown resistors) — no RP2040 GPIO pinout change
+across R2A → R2B → R2C. Build R2C boards with `HARDWARE_REVISION_OPENLCC_R2A` (as this project's
+`CMakeLists.txt` already does).
 
 Secondly, there's `USB_DEBUG`. It enables debug output via USB-CDC, and should not be used inside an actual machine.
 Outside of an actual machine (e.g. using a control board emulator), it can be useful, but it delays startup by 5 seconds
