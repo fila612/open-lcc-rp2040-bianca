@@ -42,12 +42,10 @@ void EspFirmware::onUartRx() {
 }
 
 bool EspFirmware::readFromRingBufferBlockingWithTimeout(uint8_t *dst, size_t len, absolute_time_t timeout_time) {
-    timeout_state_t ts;
-    check_timeout_fn timeout_check = init_single_timeout_until(&ts, timeout_time);
-
+    // [MOD] See UartReadBlockingTimeout.h for why this no longer uses pico/timeout_helper.h.
     for (size_t i = 0; i < len; ++i) {
         while (ringbuffer.readAvailable() < len) {
-            if (timeout_check(&ts)) {
+            if (time_reached(timeout_time)) {
                 return false;
             }
 

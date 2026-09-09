@@ -119,8 +119,10 @@ function(bootloader_build_combined NAME)
     add_custom_command(TARGET ${COMBINED} POST_BUILD
             COMMAND ${CMAKE_OBJCOPY} -Obinary ${COMBINED}.elf ${COMBINED}.bin
     )
+    # [MOD] Newer Pico SDK versions no longer build a standalone ELF2UF2 host tool; elf2uf2 is
+    # now absorbed into picotool's own "uf2 convert" subcommand instead.
     add_custom_command(TARGET ${COMBINED} POST_BUILD
-            COMMAND ELF2UF2 ${COMBINED}.elf ${COMBINED}.uf2
+            COMMAND ${CMAKE_BINARY_DIR}/_deps/picotool-build/picotool uf2 convert ${COMBINED}.elf ${COMBINED}.uf2
             VERBATIM)
 endfunction()
 
