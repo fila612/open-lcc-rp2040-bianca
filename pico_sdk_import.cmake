@@ -31,17 +31,23 @@ if (NOT PICO_SDK_PATH)
         endif ()
         # GIT_SUBMODULES_RECURSE was added in 3.17
         if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.17.0")
+            # [MOD] Pinned to the 2.3.1 release tag instead of floating on `master`. This
+            # project has no automated tests, so an unpinned SDK meant every fresh checkout
+            # silently built against whatever upstream currently is - which is exactly what
+            # broke the build before this fix (see UartReadBlockingTimeout.h, the no-OS-FatFS
+            # SDIO driver, and the ELF2UF2->picotool CMakeLists.txt change). 2.3.1 is the
+            # version verified to build cleanly as of 2026-09-09.
             FetchContent_Declare(
                     pico_sdk
                     GIT_REPOSITORY https://github.com/raspberrypi/pico-sdk
-                    GIT_TAG master
+                    GIT_TAG 2.3.1
                     GIT_SUBMODULES_RECURSE FALSE
             )
         else ()
             FetchContent_Declare(
                     pico_sdk
                     GIT_REPOSITORY https://github.com/raspberrypi/pico-sdk
-                    GIT_TAG master
+                    GIT_TAG 2.3.1
             )
         endif ()
 
