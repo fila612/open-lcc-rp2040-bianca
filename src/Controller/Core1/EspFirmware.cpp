@@ -177,7 +177,6 @@ bool EspFirmware::sendStatus(
             .ecoMode = systemControllerStatusMessage->ecoMode,
             .sleepMode = systemControllerStatusMessage->sleepMode,
             .waterTankLow = systemControllerStatusMessage->waterTankLow,
-            .operationalReady = systemControllerStatusMessage->operationalReady,
             .plannedAutoSleepInSeconds = autosleepIn,
             .rp2040Temperature = 0,
             .numBails = systemControllerStatusMessage->bailCounter,
@@ -192,6 +191,7 @@ bool EspFirmware::sendStatus(
             .serviceBoilerOn = systemControllerStatusMessage->serviceSSRActive,
             .loadedRoutine = currentRoutine,
             .currentRoutineStep = currentRoutineStep,
+            .operationalReady = systemControllerStatusMessage->operationalReady,
     };
 
     ringbuffer.consumerClear();

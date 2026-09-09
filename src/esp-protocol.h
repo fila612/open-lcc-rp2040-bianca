@@ -105,11 +105,6 @@ struct __attribute__((packed)) ESPSystemStatusMessage {
     bool ecoMode;
     bool sleepMode;
     bool waterTankLow;
-    // [MOD] One-time latch: heat-up sequence finished AND temperatures have actually settled at
-    // target at least once since the last cold start/sleep cycle. Distinct from coalescedState
-    // WARM/TEMPS_NORMALIZING, which is a live band check that oscillates during normal PID
-    // settling - this does not.
-    bool operationalReady;
     uint16_t plannedAutoSleepInSeconds;
     float rp2040Temperature;
     uint16_t numBails;
@@ -124,6 +119,15 @@ struct __attribute__((packed)) ESPSystemStatusMessage {
     bool serviceBoilerOn;
     uint16_t loadedRoutine;
     uint16_t currentRoutineStep;
+    // [MOD] Appended at the end on purpose, not inserted where it was first added: keeps this
+    // struct backward-compatible with older RP2040 firmware that doesn't send this field, as
+    // long as the receiving side reads exactly header.length bytes (not sizeof(this struct)) -
+    // see OpenLCCBianca.cpp's handleSystemStatusMessage(). Any new field must also go at the end
+    // for the same reason. One-time latch: heat-up sequence finished AND temperatures have
+    // actually settled at target at least once since the last cold start/sleep cycle. Distinct
+    // from coalescedState WARM/TEMPS_NORMALIZING, which is a live band check that oscillates
+    // during normal PID settling - this does not.
+    bool operationalReady;
     /*
      * To add:
      * Pid settings and pid parameters
