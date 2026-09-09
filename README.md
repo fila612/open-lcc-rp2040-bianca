@@ -42,6 +42,10 @@ As for the new features of the V3:
 ### Versioning
 This project uses Semver. The major version number is increased whe RP2040 <-> ESP32 protocol version is increased (as that is a BC break).
 
+This fork tracks its own version in `src/version.h` (`RP2040_FIRMWARE_VERSION_STRING`), separate from upstream: `0.0.1` was the untouched upstream state, `1.0.0` is reached once the original LCC's functions are fully reproduced and confirmed on the machine. Tagged as `v.MAJOR.MINOR.PATCH` on the corresponding commit. Currently `v.0.2.1`.
+
+`esp-protocol.h`'s `ESPSystemStatusMessage` is kept backward compatible on purpose: new fields are always appended at the end, never inserted, and the companion [fila612/open-lcc-esphome-bianca](https://github.com/fila612/open-lcc-esphome-bianca) ESPHome firmware accepts a shorter message than it knows about, leaving newer fields at their default. That means an older RP2040 firmware (including the unpatched upstream) still works with a newer ESPHome build — features that depend on a newer field (e.g. `operational_ready`, added in `v.0.2.0`) just don't activate. The ESPHome README lists which firmware version each such feature needs.
+
 ## Project goals
 
 Create a firmware for using the Open LCC in a Lelit Bianca to its fullest extent.
