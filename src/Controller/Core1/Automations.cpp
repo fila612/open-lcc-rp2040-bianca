@@ -128,6 +128,10 @@ void Automations::handleCurrentAutomationStep(SystemControllerStatusMessage sm) 
                     return;
                 }
                 break;
+            case BREW_END:
+                // Handled in onBrewEnded(), which runs once on the exact tick brewing stops,
+                // before this per-tick evaluation would even see the step that was active.
+                break;
         }
     }
 }
@@ -155,7 +159,20 @@ void Automations::moveToAutomationStep(uint16_t step) {
 
 void Automations::onBrewEnded() {
     brewStartedAt.reset();
+
     if (currentAutomationStep > 0) {
+        // [MOD] If the step that was active when brewing ended defines a BREW_END exit
+        // condition, honor it instead of unconditionally resetting to step 0. Routines that
+        // don't use BREW_END (e.g. the current hardcoded one) see no change: an empty or
+        // BREW_END-less exitConditions list falls through to the same reset as before.
+        auto currentStep = currentRoutine.at(currentAutomationStep);
+        for (const auto& exitCondition : currentStep.exitConditions) {
+            if (exitCondition.type == BREW_END) {
+                moveToAutomationStep(exitCondition.exitToStep);
+                return;
+            }
+        }
+
         moveToAutomationStep(0);
     }
 }

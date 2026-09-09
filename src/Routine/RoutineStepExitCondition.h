@@ -12,6 +12,10 @@ typedef enum {
     BREW_START,
     BREW_TIME_ABSOLUTE,
     STEP_TIME,
+    // [MOD] Fires when a brew that was running ends. Only takes effect on the step active at
+    // that moment - see Automations::onBrewEnded(), which checks for this before falling back
+    // to its unconditional reset to step 0.
+    BREW_END,
 } RoutineStepExitConditionType;
 
 class RoutineStepExitCondition {
