@@ -141,7 +141,8 @@ void SettingsManager::readSettings() {
         memcpy(&currentSettings, &defaultSettings, sizeof(SettingStruct));
         return;
     } else {
-        uint16_t dev = settingsFlash->get_device_id();
+        // [[maybe_unused]]: only read by USB_PRINTF below, which compiles away without USB_DEBUG
+        [[maybe_unused]] uint16_t dev = settingsFlash->get_device_id();
         USB_PRINTF("Settings flash preset, device id %x\n", dev);
     }
 

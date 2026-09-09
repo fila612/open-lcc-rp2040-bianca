@@ -34,30 +34,67 @@ MCP9600* mcp9600_0x63;
 Automations* automations;
 
 /* SDIO Interface */
+// [MOD] The vendored no-OS-FatFS version now used added several required fields to
+// sd_sdio_if_t/sd_card_t (SDIO_PIO, DMA_IRQ_num, drive strengths, card-detect wiring) that this
+// initializer never set. Left at their implicit zero-default, CLK_gpio/D1_gpio/D2_gpio/D3_gpio
+// would all have been GPIO 0 - which is ESP_TX - and SDIO_PIO a null PIO pointer; the driver now
+// reads these fields directly instead of deriving them from D0_gpio itself (see
+// rp2040_sdio.c's SDIO_CLK/SDIO_D1/SDIO_D2/SDIO_D3/SDIO_PIO macros), so this was a real latent
+// bug (dormant only because SD_DET_B currently reports no card, so this code path is unused).
 static sd_sdio_if_t sdio_if = {
-        /*
-        Pins CLK_gpio, D1_gpio, D2_gpio, and D3_gpio are at offsets from pin D0_gpio.
-        The offsets are determined by sd_driver\SDIO\rp2040_sdio.pio.
-            CLK_gpio = (D0_gpio + SDIO_CLK_PIN_D0_OFFSET) % 32;
-            As of this writing, SDIO_CLK_PIN_D0_OFFSET is 30,
-                which is -2 in mod32 arithmetic, so:
-            CLK_gpio = D0_gpio -2.
-            D1_gpio = D0_gpio + 1;
-            D2_gpio = D0_gpio + 2;
-            D3_gpio = D0_gpio + 3;
-        */
+        // CLK_gpio, D1_gpio, D2_gpio, D3_gpio are at fixed offsets from D0_gpio per
+        // sd_driver/SDIO/rp2040_sdio.pio; pins.h already names these same pins for that purpose.
+        .CLK_gpio = SD_SCLK,
         .CMD_gpio = SD_MOSI_CMD,
         .D0_gpio = SD_MISO_DAT0,
-        .baud_rate = 15 * 1000 * 1000  // 15 MHz
+        .D1_gpio = SD_DAT1,
+        .D2_gpio = SD_DAT2,
+        .D3_gpio = SD_CS_DAT3,
+        .SDIO_PIO = pio0,          // unused elsewhere in this project
+        .DMA_IRQ_num = DMA_IRQ_0,  // unused elsewhere in this project
+        .use_exclusive_DMA_IRQ_handler = false,
+        .baud_rate = 15 * 1000 * 1000,  // 15 MHz
+        .set_drive_strength = false,    // no board-specific tuning known; use RP2040 reset defaults
+        .CLK_gpio_drive_strength = GPIO_DRIVE_STRENGTH_4MA,  // inert while set_drive_strength=false
+        .CMD_gpio_drive_strength = GPIO_DRIVE_STRENGTH_4MA,
+        .D0_gpio_drive_strength = GPIO_DRIVE_STRENGTH_4MA,
+        .D1_gpio_drive_strength = GPIO_DRIVE_STRENGTH_4MA,
+        .D2_gpio_drive_strength = GPIO_DRIVE_STRENGTH_4MA,
+        .D3_gpio_drive_strength = GPIO_DRIVE_STRENGTH_4MA,
+        .state = {}  // dynamically assigned by the driver, not configuration
 };
 
 /* Hardware Configuration of the SD Card socket "object" */
+// [MOD] Same as above: explicitly zero/false-initialize the newer fields instead of relying on
+// implicit zero-init, so the "missing initializer" warnings don't hide a real one next time a
+// field is added. use_card_detect stays false - unchanged from before - since sd_card_inserted()
+// already gates mounting manually in main1(); card_detect_gpio etc. are inert while it's false
+// but set to the actual wiring in case that ever changes. Everything from m_Status down is
+// explicitly documented in sd_card.h as driver-owned state, not configuration.
 static sd_card_t sd_card = {
         /* "pcName" is the FatFs "logical drive" identifier.
         (See http://elm-chan.org/fsw/ff/doc/filename.html#vol) */
         .pcName = "0:",
         .type = SD_IF_SDIO,
-        .sdio_if_p = &sdio_if
+        .sdio_if_p = &sdio_if,
+        .use_card_detect = false,
+        .card_detect_gpio = SD_DET_B,
+        .card_detected_true = false,
+        .card_detect_use_pull = true,
+        .card_detect_pull_hi = true,
+        .m_Status = 0,
+        .csd = {},
+        .cid = {},
+        .sectors = 0,
+        .card_type = 0,
+        .mutex = {},
+        .fatfs = {},
+        .mounted = false,
+        .init = nullptr,
+        .write_blocks = nullptr,
+        .read_blocks = nullptr,
+        .get_num_sectors = nullptr,
+        .sd_test_com = nullptr
 };
 
 /* Callbacks used by the library: */

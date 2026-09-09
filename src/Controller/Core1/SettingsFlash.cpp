@@ -55,9 +55,9 @@ void SettingsFlash::read(uint32_t addr, uint8_t *buf, size_t len) {
     cs_select(_csPin);
     uint8_t cmdbuf[4] = {
             FLASH_CMD_READ,
-            addr >> 16,
-            addr >> 8,
-            addr
+            static_cast<uint8_t>(addr >> 16),
+            static_cast<uint8_t>(addr >> 8),
+            static_cast<uint8_t>(addr)
     };
     spi_write_blocking(_spi, cmdbuf, 4);
     spi_read_blocking(_spi, 0, buf, len);
@@ -85,9 +85,9 @@ void SettingsFlash::wait_done() {
 void SettingsFlash::sector_erase(uint32_t addr) {
     uint8_t cmdbuf[4] = {
             FLASH_CMD_SECTOR_ERASE,
-            addr >> 16,
-            addr >> 8,
-            addr
+            static_cast<uint8_t>(addr >> 16),
+            static_cast<uint8_t>(addr >> 8),
+            static_cast<uint8_t>(addr)
     };
     write_enable();
     cs_select(_csPin);
@@ -105,9 +105,9 @@ void SettingsFlash::page_program(uint32_t addr, uint8_t *buf, size_t len) {
 
     uint8_t cmdbuf[4] = {
             FLASH_CMD_PAGE_PROGRAM,
-            addr >> 16,
-            addr >> 8,
-            addr
+            static_cast<uint8_t>(addr >> 16),
+            static_cast<uint8_t>(addr >> 8),
+            static_cast<uint8_t>(addr)
     };
     write_enable();
     wait_done();

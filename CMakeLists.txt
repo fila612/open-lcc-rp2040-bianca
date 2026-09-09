@@ -113,7 +113,11 @@ function(bootloader_build_combined NAME)
     )
 
     add_custom_target(${COMBINED} ALL DEPENDS ${APP_HDR})
-    add_custom_command(TARGET ${COMBINED} DEPENDS ${APP_HDR}
+    # [MOD] add_custom_command(TARGET ...) doesn't accept DEPENDS (that's only valid for the
+    # OUTPUT form) and requires an explicit PRE_BUILD/PRE_LINK/POST_BUILD; CMake was silently
+    # assuming POST_BUILD for backward compatibility (CMP0175 warning). The dependency on
+    # APP_HDR is already established via the add_custom_target() line above.
+    add_custom_command(TARGET ${COMBINED} POST_BUILD
             COMMAND ${CMAKE_OBJCOPY} --update-section .app_hdr=${APP_HDR} ${NAME}.elf ${COMBINED}.elf
     )
     add_custom_command(TARGET ${COMBINED} POST_BUILD
