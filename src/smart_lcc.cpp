@@ -18,6 +18,11 @@
 #include "utils/USBDebug.h"
 #include "pins.h"
 #include "Controller/Core1/Automations.h"
+#include "version.h"
+
+// [MOD] Anchors RP2040_FIRMWARE_VERSION_STRING in the compiled binary itself, readable via
+// `picotool info -a` on the flashed device or the .elf - independent of source/git access.
+bi_decl(bi_program_version_string(RP2040_FIRMWARE_VERSION_STRING));
 
 repeating_timer_t safePacketBootupTimer;
 SystemController* systemController;
@@ -382,6 +387,8 @@ bool repeating_timer_callback([[maybe_unused]] repeating_timer_t *t) {
 
 int main() {
     INIT_USB_DEBUG();
+
+    USB_PRINTF("RP2040 firmware version %s\n", RP2040_FIRMWARE_VERSION_STRING);
 
     initGpio();
 
