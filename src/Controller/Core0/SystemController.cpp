@@ -193,7 +193,18 @@ LccParsedPacket SystemController::handleControlBoardPacket(ControlBoardParsedPac
     // If we're not already brewing, don't start a brew or fill the service boiler if there is no water in the tank
     if (!brewStartedAt.has_value()) {
         if (!waterTankEmptyLatch.get()) {
-            if (latestParsedPacket.brew_switch) {
+            // [MOD] Don't allow a brew to start while the brew boiler is still in its post-boot
+            // heat-up sequence (RUN_STATE_HEATUP_STAGE_1/2, which deliberately overshoots the
+            // brew boiler to 130C to fast-heat the group via the boiler mass - see
+            // handleRunningStateAutomations()/updateControllerSettings()). Previously nothing
+            // gated this, so pulling the lever during heat-up would brew against that 130C
+            // setpoint instead of the normal brew temperature. Only gates starting a NEW brew;
+            // an already-running one (handled in the else branch below) is left alone, and
+            // filling the service boiler is unaffected - it's unrelated to the brew boiler's
+            // heat-up state.
+            if (latestParsedPacket.brew_switch && runState != RUN_STATE_NORMAL) {
+                USB_PRINTF("Brew blocked: still heating up (runState=%u)\n", runState);
+            } else if (latestParsedPacket.brew_switch) {
                 updateForFlowMode(&lcc);
 
                 brewing = true;
