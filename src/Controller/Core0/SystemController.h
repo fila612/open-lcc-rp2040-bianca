@@ -39,6 +39,16 @@ private:
     SystemControllerInternalState internalState = NOT_STARTED_YET;
     SystemControllerRunState runState = RUN_STATE_UNDETEMINED;
 
+    // [MOD] A one-time latch, deliberately NOT re-evaluated once true: distinct from
+    // areTemperaturesAtSetPoint(), which is a live band check that flips back and forth as the
+    // PID settles/oscillates around the set point (by design - that's normal operation, not a
+    // readiness signal). This instead answers "has the heat-up sequence finished AND has the
+    // machine settled at temperature at least once since the last cold start or sleep cycle" -
+    // set once in handleRunningStateAutomations(), cleared in onSleepModeEntered()/
+    // onSleepModeExited() and implicitly by a fresh cold start (runState starts at
+    // RUN_STATE_UNDETEMINED again, so this starts false again too).
+    bool operationalReady = false;
+
     LccRawPacket safeLccRawPacket;
 
     // Feed forward PID addition

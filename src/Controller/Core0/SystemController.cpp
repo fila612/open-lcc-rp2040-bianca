@@ -131,6 +131,7 @@ void SystemController::loop() {
             .currentlyFillingServiceBoiler = currentLccParsedPacket.pump_on &&
                                              currentLccParsedPacket.service_boiler_solenoid_open,
             .waterTankLow = !isBailed() && currentControlBoardParsedPacket.water_tank_empty,
+            .operationalReady = operationalReady,
 //            .autoSleepMinutes = settings->getAutoSleepMin(),
 //            .plannedSleepInSeconds = sleepSeconds,
 //            .lastSleepModeExitAt = lastSleepModeExitAt,
@@ -193,17 +194,19 @@ LccParsedPacket SystemController::handleControlBoardPacket(ControlBoardParsedPac
     // If we're not already brewing, don't start a brew or fill the service boiler if there is no water in the tank
     if (!brewStartedAt.has_value()) {
         if (!waterTankEmptyLatch.get()) {
-            // [MOD] Don't allow a brew to start while the brew boiler is still in its post-boot
-            // heat-up sequence (RUN_STATE_HEATUP_STAGE_1/2, which deliberately overshoots the
-            // brew boiler to 130C to fast-heat the group via the boiler mass - see
-            // handleRunningStateAutomations()/updateControllerSettings()). Previously nothing
-            // gated this, so pulling the lever during heat-up would brew against that 130C
-            // setpoint instead of the normal brew temperature. Only gates starting a NEW brew;
-            // an already-running one (handled in the else branch below) is left alone, and
-            // filling the service boiler is unaffected - it's unrelated to the brew boiler's
-            // heat-up state.
-            if (latestParsedPacket.brew_switch && runState != RUN_STATE_NORMAL) {
-                USB_PRINTF("Brew blocked: still heating up (runState=%u)\n", runState);
+            // [MOD] Don't allow a brew to start before the machine has latched
+            // operationalReady - i.e. not just past the post-boot heat-up sequence
+            // (RUN_STATE_HEATUP_STAGE_1/2, which deliberately overshoots the brew boiler to
+            // 130C to fast-heat the group via the boiler mass), but actually settled back down
+            // at the real brew temperature at least once since the last cold start/sleep cycle.
+            // Tightened from an earlier runState-only check: right after the 130C sequence ends,
+            // the boiler is still well above brew temperature while it cools/settles, and that
+            // window had the exact same "brew at the wrong temperature" problem the runState
+            // check was meant to close. Only gates starting a NEW brew; an already-running one
+            // (handled in the else branch below) is left alone, and filling the service boiler
+            // is unaffected - it's unrelated to the brew boiler's heat-up/settling state.
+            if (latestParsedPacket.brew_switch && !operationalReady) {
+                USB_PRINTF("Brew blocked: not operationally ready yet (runState=%u)\n", runState);
             } else if (latestParsedPacket.brew_switch) {
                 updateForFlowMode(&lcc);
 
@@ -545,11 +548,19 @@ void SystemController::onSleepModeEntered() {
     if (runState == RUN_STATE_HEATUP_STAGE_2) {
         heatupStage2Timer.reset();
     }
+
+    // [MOD] Asleep, the brew boiler is deliberately held at a lower temperature (see
+    // updateControllerSettings()) - not operationally ready by definition.
+    operationalReady = false;
 }
 
 void SystemController::onSleepModeExited() {
 /*    lastSleepModeExitAt = get_absolute_time();
     resetPlannedSleep();*/
+
+    // [MOD] Waking up starts reheating from the sleep temperature back to the real target;
+    // require the latch to be earned again rather than staying true from before the sleep.
+    operationalReady = false;
 }
 
 void SystemController::handleRunningStateAutomations() {
@@ -567,6 +578,15 @@ void SystemController::handleRunningStateAutomations() {
         if (absolute_time_diff_us(heatupStage2Timer.value(), get_absolute_time()) > 4 * 60 * 1000 * 1000) {
             finishHeatup();
         }
+    }
+
+    // [MOD] One-time latch: the heat-up sequence is done AND temperatures have actually settled
+    // at target, at least once since the last cold start or sleep cycle. Deliberately only ever
+    // set here, never cleared here - once true, ordinary PID oscillation around the set point
+    // (areTemperaturesAtSetPoint() flipping back and forth) does not un-latch it. Cleared only in
+    // onSleepModeEntered()/onSleepModeExited() and implicitly by a fresh cold start.
+    if (!operationalReady && runState == RUN_STATE_NORMAL && !settings->getSleepMode() && areTemperaturesAtSetPoint()) {
+        operationalReady = true;
     }
 
     /*

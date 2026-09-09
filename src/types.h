@@ -112,6 +112,9 @@ struct SystemControllerStatusMessage{
     bool currentlyBrewing{};
     bool currentlyFillingServiceBoiler{};
     bool waterTankLow{};
+    // [MOD] One-time latch: heat-up sequence finished AND temperatures have actually settled at
+    // target at least once since the last cold start/sleep cycle. See SystemController.h.
+    bool operationalReady{};
 //    uint16_t autoSleepMinutes{};
 //    float plannedSleepInSeconds{};
 //    absolute_time_t lastSleepModeExitAt = nil_time;

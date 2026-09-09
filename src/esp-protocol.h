@@ -105,6 +105,11 @@ struct __attribute__((packed)) ESPSystemStatusMessage {
     bool ecoMode;
     bool sleepMode;
     bool waterTankLow;
+    // [MOD] One-time latch: heat-up sequence finished AND temperatures have actually settled at
+    // target at least once since the last cold start/sleep cycle. Distinct from coalescedState
+    // WARM/TEMPS_NORMALIZING, which is a live band check that oscillates during normal PID
+    // settling - this does not.
+    bool operationalReady;
     uint16_t plannedAutoSleepInSeconds;
     float rp2040Temperature;
     uint16_t numBails;

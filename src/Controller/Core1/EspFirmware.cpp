@@ -177,6 +177,7 @@ bool EspFirmware::sendStatus(
             .ecoMode = systemControllerStatusMessage->ecoMode,
             .sleepMode = systemControllerStatusMessage->sleepMode,
             .waterTankLow = systemControllerStatusMessage->waterTankLow,
+            .operationalReady = systemControllerStatusMessage->operationalReady,
             .plannedAutoSleepInSeconds = autosleepIn,
             .rp2040Temperature = 0,
             .numBails = systemControllerStatusMessage->bailCounter,
