@@ -49,6 +49,14 @@ private:
     // RUN_STATE_UNDETEMINED again, so this starts false again too).
     bool operationalReady = false;
 
+    // [MOD] Tracks how long areTemperaturesAtSetPoint() (plus the other operationalReady
+    // preconditions) has held continuously - reset to nullopt the instant any of them go false,
+    // set to "now" the instant they first become true. operationalReady only latches once this
+    // has held for OPERATIONAL_READY_STABILITY_US, so a boiler that merely grazes the band edge
+    // while still climbing doesn't latch readiness prematurely.
+    nonstd::optional<absolute_time_t> inBandSince{};
+    static constexpr uint32_t OPERATIONAL_READY_STABILITY_US = 30 * 1000 * 1000; // 30 seconds
+
     LccRawPacket safeLccRawPacket;
 
     // Feed forward PID addition

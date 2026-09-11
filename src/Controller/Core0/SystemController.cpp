@@ -581,12 +581,22 @@ void SystemController::handleRunningStateAutomations() {
     }
 
     // [MOD] One-time latch: the heat-up sequence is done AND temperatures have actually settled
-    // at target, at least once since the last cold start or sleep cycle. Deliberately only ever
-    // set here, never cleared here - once true, ordinary PID oscillation around the set point
-    // (areTemperaturesAtSetPoint() flipping back and forth) does not un-latch it. Cleared only in
-    // onSleepModeEntered()/onSleepModeExited() and implicitly by a fresh cold start.
-    if (!operationalReady && runState == RUN_STATE_NORMAL && !settings->getSleepMode() && areTemperaturesAtSetPoint()) {
-        operationalReady = true;
+    // at target for a sustained period, at least once since the last cold start or sleep cycle.
+    // Deliberately only ever set here, never cleared here - once true, ordinary PID oscillation
+    // around the set point (areTemperaturesAtSetPoint() flipping back and forth) does not
+    // un-latch it. Cleared only in onSleepModeEntered()/onSleepModeExited() and implicitly by a
+    // fresh cold start.
+    bool inBandNow = runState == RUN_STATE_NORMAL && !settings->getSleepMode() && areTemperaturesAtSetPoint();
+    if (!inBandNow) {
+        // Any excursion out of band - even a brief one while still climbing towards it -
+        // restarts the stability clock. Only a truly continuous stay counts.
+        inBandSince.reset();
+    } else if (!operationalReady) {
+        if (!inBandSince.has_value()) {
+            inBandSince = get_absolute_time();
+        } else if (absolute_time_diff_us(inBandSince.value(), get_absolute_time()) >= OPERATIONAL_READY_STABILITY_US) {
+            operationalReady = true;
+        }
     }
 
     /*
