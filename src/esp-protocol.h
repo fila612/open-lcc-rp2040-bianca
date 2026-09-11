@@ -128,6 +128,12 @@ struct __attribute__((packed)) ESPSystemStatusMessage {
     // from coalescedState WARM/TEMPS_NORMALIZING, which is a live band check that oscillates
     // during normal PID settling - this does not.
     bool operationalReady;
+    // [MOD] The running RP2040 firmware version (see version.h), so the ESP32 side can display
+    // it live instead of relying on a manually-maintained string. Appended at the end per the
+    // same backward-compat rule as operationalReady above.
+    uint8_t firmwareVersionMajor;
+    uint8_t firmwareVersionMinor;
+    uint8_t firmwareVersionPatch;
     /*
      * To add:
      * Pid settings and pid parameters

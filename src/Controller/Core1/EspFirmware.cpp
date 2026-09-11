@@ -11,6 +11,7 @@
 #include "utils/crc32.h"
 #include "utils/USBDebug.h"
 #include "utils/hex_format.h"
+#include "version.h"
 
 jnk0le::Ringbuffer<uint8_t, 1024> EspFirmware::ringbuffer = {};
 uart_inst_t* EspFirmware::interruptedUart = nullptr;
@@ -192,6 +193,9 @@ bool EspFirmware::sendStatus(
             .loadedRoutine = currentRoutine,
             .currentRoutineStep = currentRoutineStep,
             .operationalReady = systemControllerStatusMessage->operationalReady,
+            .firmwareVersionMajor = RP2040_FIRMWARE_VERSION_MAJOR,
+            .firmwareVersionMinor = RP2040_FIRMWARE_VERSION_MINOR,
+            .firmwareVersionPatch = RP2040_FIRMWARE_VERSION_PATCH,
     };
 
     ringbuffer.consumerClear();
