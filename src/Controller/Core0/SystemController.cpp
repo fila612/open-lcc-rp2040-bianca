@@ -139,6 +139,7 @@ void SystemController::loop() {
             .sbRawHi = sbHi,
             .sbRawLo = sbLow,
             .flowMode = flowMode,
+            .brewActive = isBrewActive(),
     };
 
     if (!outgoingQueue->isFull()) {
@@ -190,6 +191,12 @@ LccParsedPacket SystemController::handleControlBoardPacket(ControlBoardParsedPac
     serviceTempAverage.addValue(latestParsedPacket.service_boiler_temperature);
 
     bool brewing = false;
+    if (!latestParsedPacket.brew_switch) {
+        brewStartBlockedUntilRelease = false;
+    } else if (!brewStartedAt.has_value() && !operationalReady) {
+        // A rejected lever request must not start later when readiness is earned.
+        brewStartBlockedUntilRelease = true;
+    }
 
     // If we're not already brewing, don't start a brew or fill the service boiler if there is no water in the tank
     if (!brewStartedAt.has_value()) {
@@ -205,7 +212,7 @@ LccParsedPacket SystemController::handleControlBoardPacket(ControlBoardParsedPac
             // check was meant to close. Only gates starting a NEW brew; an already-running one
             // (handled in the else branch below) is left alone, and filling the service boiler
             // is unaffected - it's unrelated to the brew boiler's heat-up/settling state.
-            if (latestParsedPacket.brew_switch && !operationalReady) {
+            if (latestParsedPacket.brew_switch && (!operationalReady || brewStartBlockedUntilRelease)) {
                 USB_PRINTF("Brew blocked: not operationally ready yet (runState=%u)\n", runState);
             } else if (latestParsedPacket.brew_switch) {
                 updateForFlowMode(&lcc);
@@ -467,6 +474,12 @@ void SystemController::unbail() {
 }
 
 void SystemController::setSleepMode(bool _sleepMode) {
+    // [MOD] The cold-start heat-up sequence must finish before sleep can be
+    // requested. Keep startup restoration of a persisted sleep state possible.
+    if (_sleepMode && internalState != NOT_STARTED_YET && runState != RUN_STATE_NORMAL) {
+        return;
+    }
+
     if (_sleepMode) {
         onSleepModeEntered();
     } else {
@@ -545,13 +558,10 @@ void SystemController::updatePlannedAutoSleep() {
 }
 
 void SystemController::onSleepModeEntered() {
-    if (runState == RUN_STATE_HEATUP_STAGE_2) {
-        heatupStage2Timer.reset();
-    }
-
     // [MOD] Asleep, the brew boiler is deliberately held at a lower temperature (see
     // updateControllerSettings()) - not operationally ready by definition.
     operationalReady = false;
+    inBandSince.reset();
 }
 
 void SystemController::onSleepModeExited() {
@@ -561,9 +571,17 @@ void SystemController::onSleepModeExited() {
     // [MOD] Waking up starts reheating from the sleep temperature back to the real target;
     // require the latch to be earned again rather than staying true from before the sleep.
     operationalReady = false;
+    inBandSince.reset();
 }
 
 void SystemController::handleRunningStateAutomations() {
+    // [MOD] A sleep state restored after a watchdog reboot stays asleep;
+    // don't start or advance the cold-start sequence while sleeping.
+    if (settings->getSleepMode()) {
+        inBandSince.reset();
+        return;
+    }
+
     if (runState == RUN_STATE_UNDETEMINED) {
         if (settings->getTargetBrewTemp() > 80 && currentControlBoardParsedPacket.brew_boiler_temperature < 65) {
             initiateHeatup();

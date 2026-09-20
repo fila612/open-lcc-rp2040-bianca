@@ -5,6 +5,7 @@
 #include <cstring>
 #include "Controller/Core0/SystemController.h"
 #include "utils/PicoQueue.h"
+#include "utils/Core1RecoveryTimer.h"
 #include "pico/multicore.h"
 #include "hardware/watchdog.h"
 #include "MulticoreSupport.h"
@@ -228,25 +229,18 @@ int i2c_bus_scan(i2c_inst_t* i2c) {
     support.registerCore();
 
     // Core 0 - System controller (incl. safe packet sender), Settings controller
-    nonstd::optional<absolute_time_t> core1RebootTimer{};
+    Core1RecoveryTimer core1RecoveryTimer;
 
     while(true) {
         if (watchdog_get_count() > 0) {
             watchdog_update();
         }
 
-        if (core1RebootTimer.has_value() && absolute_time_diff_us(core1RebootTimer.value(), get_absolute_time()) > 0) {
-            multicore_reset_core1();
-            multicore_launch_core1(main1);
-            core1RebootTimer = make_timeout_time_ms(5000);
-        }
-
         systemController->loop();
 
-        if (statusQueue->isFull())  {
-            if (!core1RebootTimer.has_value()) {
-                core1RebootTimer = make_timeout_time_ms(2000);
-            }
+        if (core1RecoveryTimer.shouldRestart(statusQueue->isFull(), get_absolute_time())) {
+            multicore_reset_core1();
+            multicore_launch_core1(main1);
         }
     }
 }
@@ -339,8 +333,13 @@ int i2c_bus_scan(i2c_inst_t* i2c) {
     }
 
     while (true) {
+        bool receivedStatus = false;
         while (!statusQueue->isEmpty()) {
             statusQueue->removeBlocking(&sm);
+            receivedStatus = true;
+        }
+        if (receivedStatus) {
+            settingsManager->updateSleepState(sm);
         }
 
         status->updateStatusMessage(sm);

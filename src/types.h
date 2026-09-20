@@ -122,6 +122,9 @@ struct SystemControllerStatusMessage{
     uint16_t sbRawHi{};
     uint16_t sbRawLo{};
     FlowMode flowMode{};
+    // Internal accepted-shot state for the existing wire currentlyBrewing field.
+    // Keep the internal lever-derived currentlyBrewing for legacy wake/automation behavior.
+    bool brewActive{};
 };
 
 typedef enum {

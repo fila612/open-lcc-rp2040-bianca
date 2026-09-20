@@ -173,7 +173,7 @@ bool EspFirmware::sendStatus(
             .serviceBoilerSetPoint = systemControllerStatusMessage->serviceSetPoint,
             .brewTemperatureOffset = systemControllerStatusMessage->brewTemperatureOffset,
             .autoSleepAfter = autoSleepMinutes,
-            .currentlyBrewing = systemControllerStatusMessage->currentlyBrewing,
+            .currentlyBrewing = systemControllerStatusMessage->brewActive,
             .currentlyFillingServiceBoiler = systemControllerStatusMessage->currentlyFillingServiceBoiler,
             .ecoMode = systemControllerStatusMessage->ecoMode,
             .sleepMode = systemControllerStatusMessage->sleepMode,

@@ -113,11 +113,23 @@ void SettingsManager::setServicePidParameters(PidSettings params)
 
 void SettingsManager::setSleepMode(bool sleepMode)
 {
+    // [MOD] Reject manual and automatic sleep during cold-start heat-up.
+    // Core 0 also checks this, as its state may be newer than our last report.
+    if (sleepMode && sleepBlocked) {
+        return;
+    }
+
     currentSettings.sleepMode = sleepMode;
     sendMessage(SystemControllerCommand{
         .type = COMMAND_SET_SLEEP_MODE,
         .bool1 = sleepMode
     });
+}
+
+void SettingsManager::updateSleepState(const SystemControllerStatusMessage &status) {
+    sleepBlocked = status.runState != RUN_STATE_NORMAL;
+    // Persist the state accepted by Core 0, not a rejected sleep request.
+    currentSettings.sleepMode = status.sleepMode;
 }
 
 void SettingsManager::initialize() {
@@ -220,5 +232,9 @@ void SettingsManager::sendAllSettings() {
     setTargetServiceTemp(currentSettings.serviceTemperatureTarget);
     setBrewPidParameters(currentSettings.brewPidParameters);
     setServicePidParameters(currentSettings.servicePidParameters);
-    setSleepMode(currentSettings.sleepMode);
+    // Startup restoration is distinct from requesting sleep during operation.
+    sendMessage(SystemControllerCommand{
+        .type = COMMAND_SET_SLEEP_MODE,
+        .bool1 = currentSettings.sleepMode,
+    });
 }

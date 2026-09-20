@@ -42,7 +42,65 @@ As for the new features of the V3:
 ### Versioning
 This project uses Semver. The major version number is increased whe RP2040 <-> ESP32 protocol version is increased (as that is a BC break).
 
-This fork tracks its own version in `src/version.h` (`RP2040_FIRMWARE_VERSION_STRING`), separate from upstream: `0.0.1` was the untouched upstream state, `1.0.0` is reached once the original LCC's functions are fully reproduced and confirmed on the machine. Tagged as `v.MAJOR.MINOR.PATCH` on the corresponding commit. Currently `v.0.2.1`.
+This fork tracks its own version in `src/version.h` (`RP2040_FIRMWARE_VERSION_STRING`), separate from upstream: `0.0.1` was the untouched upstream state, `1.0.0` is reached once the original LCC's functions are fully reproduced and confirmed on the machine. Published versions are tagged as `v.MAJOR.MINOR.PATCH` on the corresponding commit. The current version is `0.5.0` (tag `v.0.5.0`). See [CHANGELOG.md](CHANGELOG.md) for release notes.
+
+### 0.5.0 changes
+
+- A lever raised before operational readiness cannot start a shot automatically when
+  readiness is reached. Lower and raise it again to request a new shot. This also
+  applies to reheating after sleep. Existing accepted shots retain shot-saving behavior.
+- Reuse the existing wire field `currentlyBrewing` for an accepted shot, including
+  pump-off pre-infusion. It is false on lever release or during a bail. The status
+  packet layout and length are identical to RP2040 0.4.0; no extra entity or fields
+  are transmitted. Internal lever state is retained for existing wake/automations.
+- The existing post-error recovery policy and minimum-duration counting rule remain
+  unchanged. Consumers that used Currently Brewing as a raw lever signal must now
+  account for its accepted-shot semantics.
+
+There is no new update-order requirement from this change. ESPHome versions that
+accept the RP2040 0.4.0 status format can also read this version. Older ESPHome may
+still apply its own readiness/tank inference, so newer firmware does not retroactively
+fix their display/counting logic. ESPHome 0.10.0 recognizes the accepted-shot semantics
+using the existing firmware version bytes and uses legacy inference for older RP2040
+versions. The physical lever interlock requires RP2040 0.5.0. Historical formats predating
+0.4.0 are not all guaranteed compatible in both directions by this change.
+
+#### Reliability fixes included in 0.5.0
+
+- Read the JEDEC flash ID using the actual four-byte buffer length, avoiding a one-byte stack overrun.
+- Cancel pending Core 1 recovery/retry timers once its status queue is no longer full. A continuous stall still triggers a restart after two seconds and retries every five seconds until recovery.
+- Reject manual and automatic sleep requests during the two cold-start heat-up stages. The sequence keeps running with its original timer; sleep becomes available in normal operation. A sleep state restored at startup after a watchdog reboot remains supported. Sleep/wake resets the readiness stability clock.
+
+The sleep gate does not reset the existing auto-sleep countdown. If it expires during
+heat-up, auto-sleep can take effect once the cold-start sequence reaches normal operation
+(which can precede `operationalReady` while the temperatures settle).
+
+### Upstream rationale and behavior changes
+
+The flash-ID transfer length is a memory-safety correction. Canceling the Core 1
+recovery timer after queue recovery restores behavior already present in the
+[Arduino predecessor](https://github.com/magnusnordlander/smart-lcc/blob/d8d17833ced2435663ca961b1937ad237947fcb5/firmware-arduino/src/SystemController/SystemController.cpp).
+
+Blocking sleep during cold-start heat-up is an intentional policy of this fork.
+The predecessor allowed sleep during heat-up and transitioned to a separate sleeping
+state. The later RP2040 implementation retained the timer reset without that state
+transition. Rejecting sleep keeps the heat-up timer valid; it is not a claim that
+upstream intended to prohibit sleep. After normal operation has been reached,
+sleep/wake does not restart accelerated heat-up and requires a fresh 30 seconds
+of stable target temperatures before a new brew is allowed.
+
+### Host regression checks
+
+```sh
+python3 tests/host/run.py
+```
+
+Requires a host Clang compiler with AddressSanitizer and UndefinedBehaviorSanitizer.
+The tests compile the production controller, settings, automation and flash code with
+small clock/queue/UART/SPI substitutes. They cover JEDEC transfer bounds, Core 1 recovery
+timing, sleep rejection in both heat-up stages, sleep/wake readiness, restored sleep,
+manual/automatic sleep settings, lever re-arming, accepted brew status and shot saving. They do not simulate hardware concurrency, electrical
+signals or the thermal response of the machine; on-machine validation is still outstanding.
 
 `esp-protocol.h`'s `ESPSystemStatusMessage` is kept backward compatible on purpose: new fields are always appended at the end, never inserted, and the companion [fila612/open-lcc-esphome-bianca](https://github.com/fila612/open-lcc-esphome-bianca) ESPHome firmware accepts a shorter message than it knows about, leaving newer fields at their default. That means an older RP2040 firmware (including the unpatched upstream) still works with a newer ESPHome build — features that depend on a newer field (e.g. `operational_ready`, added in `v.0.2.0`) just don't activate. The ESPHome README lists which firmware version each such feature needs.
 

@@ -100,6 +100,8 @@ struct __attribute__((packed)) ESPSystemStatusMessage {
     float serviceBoilerSetPoint;
     float brewTemperatureOffset;
     uint16_t autoSleepAfter;
+    // RP2040 >= 0.5.0: accepted shot (includes pump-off pre-infusion).
+    // Earlier firmware: lever on and not bailed. Wire layout stays unchanged.
     bool currentlyBrewing;
     bool currentlyFillingServiceBoiler;
     bool ecoMode;

@@ -141,7 +141,9 @@ uint16_t SettingsFlash::get_device_id() {
             0,
     };
     cs_select(_csPin);
-    spi_write_read_blocking(_spi, cmdbuf, cmdbuf, 5);
+    // [MOD] JEDEC ID: one command byte followed by manufacturer/type/capacity.
+    // The old length of 5 read and wrote past this four-byte stack buffer.
+    spi_write_read_blocking(_spi, cmdbuf, cmdbuf, sizeof(cmdbuf));
     cs_deselect(_csPin);
     wait_done();
 

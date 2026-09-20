@@ -48,6 +48,7 @@ private:
     // onSleepModeExited() and implicitly by a fresh cold start (runState starts at
     // RUN_STATE_UNDETEMINED again, so this starts false again too).
     bool operationalReady = false;
+    bool brewStartBlockedUntilRelease = false; // Re-arm only after lowering the lever.
 
     // [MOD] Tracks how long areTemperaturesAtSetPoint() (plus the other operationalReady
     // preconditions) has held continuously - reset to nullopt the instant any of them go false,
@@ -93,6 +94,9 @@ private:
     uint16_t bailCounter = 0;
     void softBail(SystemControllerBailReason reason);
     void hardBail(SystemControllerBailReason reason);
+    inline bool isBrewActive() {
+        return !isBailed() && brewStartedAt.has_value() && currentControlBoardParsedPacket.brew_switch;
+    }
     inline bool isBailed() { return internalState == SOFT_BAIL || internalState == HARD_BAIL; }
     inline bool isSoftBailed() { return internalState == SOFT_BAIL; };
     void unbail();

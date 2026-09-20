@@ -24,6 +24,7 @@ public:
     void setBrewPidParameters(PidSettings params);
     void setServicePidParameters(PidSettings params);
     void setSleepMode(bool sleepMode);
+    void updateSleepState(const SystemControllerStatusMessage &status);
 
     inline float getBrewTemperatureOffset() const { return currentSettings.brewTemperatureOffset; };
     inline bool getEcoMode() const { return currentSettings.ecoMode; };
@@ -44,6 +45,7 @@ private:
         .brewTemperatureTarget = 33
     };
     SettingStruct currentSettings;
+    bool sleepBlocked = true; // Until Core 0 has reported its initial run state.
 
     void readSettings();
     void writeToFlash();
